@@ -241,66 +241,57 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // PDF Download Functionality
-function setupDownloadPDFButton() {
-	// أزل أي مستمعات سابقة
-	const oldBtn = document.getElementById('download-pdf');
-	if (!oldBtn) return;
-	const newBtn = oldBtn.cloneNode(true);
-	oldBtn.parentNode.replaceChild(newBtn, oldBtn);
-
-	newBtn.addEventListener('click', function(e) {
-		e.preventDefault();
-		// تحقق من القسم الظاهر
-		const dashboardVisible = document.querySelector('.head-title h1')?.textContent?.trim() === 'Dashboard';
-		const analyticsVisible = document.querySelector('.head-title h1')?.textContent?.trim() === 'Analytics';
-		if (!dashboardVisible && !analyticsVisible) return;
-
-		const { jsPDF } = window.jspdf;
-		const doc = new jsPDF();
-		doc.setFontSize(20);
-		doc.text('Dashboard Report', 20, 20);
+document.getElementById('download-pdf').addEventListener('click', function() {
+	// Initialize jsPDF
+	const { jsPDF } = window.jspdf;
+	const doc = new jsPDF();
+	
+	// Add title
+	doc.setFontSize(20);
+	doc.text('Dashboard Report', 20, 20);
+	
+	// Add date
+	doc.setFontSize(12);
+	doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 30);
+	
+	// Add box info
+	doc.setFontSize(16);
+	doc.text('Statistics', 20, 45);
+	
+	const boxInfo = document.querySelectorAll('.box-info li');
+	let yPos = 55;
+	
+	boxInfo.forEach((box, index) => {
+		const title = box.querySelector('h3').textContent;
+		const value = box.querySelector('p').textContent;
+		
 		doc.setFontSize(12);
-		doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 30);
-		doc.setFontSize(16);
-		doc.text('Statistics', 20, 45);
-		const boxInfo = document.querySelectorAll('.box-info li');
-		let yPos = 55;
-		boxInfo.forEach((box, index) => {
-			const title = box.querySelector('h3')?.textContent || '';
-			const value = box.querySelector('p')?.textContent || '';
-			doc.setFontSize(12);
-			doc.text(`${title}: ${value}`, 20, yPos);
-			yPos += 10;
-		});
+		doc.text(`${title}: ${value}`, 20, yPos);
 		yPos += 10;
-		doc.setFontSize(16);
-		doc.text('Recent Orders', 20, yPos);
-		const table = document.querySelector('.table-data .order table');
-		if (table) {
-			const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent);
-			const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr => {
-				return Array.from(tr.querySelectorAll('td')).map(td => td.textContent);
-			});
-			if (headers.length && rows.length) {
-				doc.autoTable({
-					startY: yPos + 10,
-					head: [headers],
-					body: rows,
-					theme: 'grid',
-					headStyles: { fillColor: [60, 145, 230] },
-					styles: { fontSize: 10 }
-				});
-			}
-		}
-		doc.save('dashboard-report.pdf');
 	});
-}
-// استدعاء الدالة عند تحميل الصفحة وعند تغيير القسم
-window.addEventListener('DOMContentLoaded', setupDownloadPDFButton);
-document.addEventListener('click', function(e) {
-	if (e.target.matches('#dashboard-link, #analytics-link')) {
-		setTimeout(setupDownloadPDFButton, 100);
-	}
+	
+	// Add table data
+	yPos += 10;
+	doc.setFontSize(16);
+	doc.text('Recent Orders', 20, yPos);
+	
+	const table = document.querySelector('.table-data .order table');
+	const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent);
+	const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr => {
+		return Array.from(tr.querySelectorAll('td')).map(td => td.textContent);
+	});
+	
+	doc.autoTable({
+		startY: yPos + 10,
+		head: [headers],
+		body: rows,
+		theme: 'grid',
+		headStyles: { fillColor: [60, 145, 230] },
+		styles: { fontSize: 10 }
+	});
+	
+	// Save the PDF
+	doc.save('dashboard-report.pdf');
 });
 
 // Analytics Link Functionality
@@ -1005,6 +996,8 @@ document.addEventListener('DOMContentLoaded', function() {
 	// Profile Settings
 	const profileForm = document.getElementById('profile-form');
 	const btnUpload = document.querySelector('.btn-upload');
+	const profilePic = document.querySelector('.profile-pic');
+	const navbarProfilePic = document.getElementById('navbar-profile-pic');
 	
 	profileForm.addEventListener('submit', function(e) {
 		e.preventDefault();
@@ -1015,20 +1008,29 @@ document.addEventListener('DOMContentLoaded', function() {
 		notificationSystem.addNotification('status', 'Profile settings updated successfully');
 	});
 
-	btnUpload.addEventListener('click', function() {
-		// Simulate file upload click
-		const input = document.createElement('input');
-		input.type = 'file';
-		input.accept = 'image/*';
-		input.onchange = function(e) {
-			const file = e.target.files[0];
-			if (file) {
-				// Here you would typically upload the file to your server
-				notificationSystem.addNotification('status', 'Profile picture updated successfully');
-			}
-		};
-		input.click();
-	});
+	if (btnUpload && profilePic) {
+		function handleUpload() {
+			let input = document.createElement('input');
+			input.type = 'file';
+			input.accept = 'image/*';
+			input.onchange = function(e) {
+				const file = e.target.files[0];
+				if (file) {
+					const reader = new FileReader();
+					reader.onload = function(ev) {
+						profilePic.innerHTML = `<img src="${ev.target.result}" alt="Profile">`;
+						btnUpload.textContent = 'Change Photo';
+						if (navbarProfilePic) {
+							navbarProfilePic.src = ev.target.result;
+						}
+					};
+					reader.readAsDataURL(file);
+				}
+			};
+			input.click();
+		}
+		btnUpload.addEventListener('click', handleUpload);
+	}
 
 	// Security Settings
 	const securityForm = document.getElementById('security-form');
@@ -1142,76 +1144,4 @@ function hideAllSections() {
         var el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
-}
-
-// Dashboard PDF
-const dashboardPDFBtn = document.getElementById('download-pdf-dashboard');
-if (dashboardPDFBtn) {
-  dashboardPDFBtn.addEventListener('click', function(e) {
-    e.preventDefault();
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text('Dashboard Report', 20, 20);
-    doc.setFontSize(12);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 30);
-    doc.setFontSize(16);
-    doc.text('Statistics', 20, 45);
-    const boxInfo = document.querySelectorAll('.box-info li');
-    let yPos = 55;
-    boxInfo.forEach((box, index) => {
-      const title = box.querySelector('h3')?.textContent || '';
-      const value = box.querySelector('p')?.textContent || '';
-      doc.setFontSize(12);
-      doc.text(`${title}: ${value}`, 20, yPos);
-      yPos += 10;
-    });
-    yPos += 10;
-    doc.setFontSize(16);
-    doc.text('Recent Orders', 20, yPos);
-    const table = document.querySelector('.table-data .order table');
-    if (table) {
-      const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent);
-      const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr => {
-        return Array.from(tr.querySelectorAll('td')).map(td => td.textContent);
-      });
-      if (headers.length && rows.length) {
-        doc.autoTable({
-          startY: yPos + 10,
-          head: [headers],
-          body: rows,
-          theme: 'grid',
-          headStyles: { fillColor: [60, 145, 230] },
-          styles: { fontSize: 10 }
-        });
-      }
-    }
-    doc.save('dashboard-report.pdf');
-  });
-}
-
-// Analytics PDF
-const analyticsPDFBtn = document.getElementById('download-pdf-analytics');
-if (analyticsPDFBtn) {
-  analyticsPDFBtn.addEventListener('click', function(e) {
-    e.preventDefault();
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text('Analytics Report', 20, 20);
-    doc.setFontSize(12);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 30);
-    doc.setFontSize(16);
-    doc.text('Statistics', 20, 45);
-    const boxInfo = document.querySelectorAll('#analytics-section .box-info li');
-    let yPos = 55;
-    boxInfo.forEach((box, index) => {
-      const title = box.querySelector('h3')?.textContent || '';
-      const value = box.querySelector('p')?.textContent || '';
-      doc.setFontSize(12);
-      doc.text(`${title}: ${value}`, 20, yPos);
-      yPos += 10;
-    });
-    doc.save('analytics-report.pdf');
-  });
 }
